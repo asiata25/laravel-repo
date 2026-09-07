@@ -62,6 +62,23 @@ it('rejects login with invalid credentials', function (): void {
         ->assertJsonPath('errors.email.0', 'The provided credentials are incorrect.');
 });
 
+it('rate-limits login attempts to prevent brute-force attacks', function (): void {
+    $this->app['cache']->flush();
+    User::factory()->create(['email' => 'john@example.com', 'password' => 'password']);
+
+    foreach (range(1, 5) as $attempt) {
+        $this->postJson('/api/login', [
+            'email' => 'john@example.com',
+            'password' => 'wrong-password',
+        ])->assertStatus(422);
+    }
+
+    $this->postJson('/api/login', [
+        'email' => 'john@example.com',
+        'password' => 'wrong-password',
+    ])->assertStatus(429);
+});
+
 it('returns the authenticated user for a valid token', function (): void {
     $user = User::factory()->create();
 
